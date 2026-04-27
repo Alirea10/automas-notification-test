@@ -1,4 +1,4 @@
-# automas_plugin_notification_test
+# automas_notification_test
 
 启动时通过 `notify` 服务向所有已注册通知渠道发送一条测试信息。
 
