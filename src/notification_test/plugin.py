@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import asyncio
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mas.plugins import PluginContext
-
-from .schema import Config
+    from mas.plugins import PluginContext, PluginHttpRequest
 
 
 class Plugin:
@@ -14,45 +11,46 @@ class Plugin:
 
     def __init__(self, ctx: "PluginContext") -> None:
         self.ctx = ctx
-        self._task: asyncio.Task[None] | None = None
 
     async def on_start(self) -> None:
-        raw_config = self.ctx.config.to_dict() if hasattr(self.ctx.config, "to_dict") else dict(self.ctx.config)
-        config = Config.model_validate(raw_config)
-        if not config.enabled:
-            self.ctx.logger.info("测试信息发送已关闭")
-            return
-
-        self._task = asyncio.create_task(self._send_after_channels_ready(config.delay_seconds))
-        self.ctx.logger.info(
-            f"已计划在 {config.delay_seconds} 秒后发送通知测试信息"
+        self.ctx.server.http(
+            "/notification-test/send",
+            self.handle_send,
+            methods=["POST"],
         )
+        self.ctx.server.action(
+            id="notification_test_send",
+            label="发送测试通知",
+            path="/notification-test/send",
+            method="POST",
+        )
+        self.ctx.logger.info("测试通知插件已启动，点击按钮发送测试消息")
 
     async def on_stop(self, reason: str) -> None:
-        if self._task is not None and not self._task.done():
-            self._task.cancel()
         self.ctx.logger.info(f"插件停止, reason={reason}")
 
-    async def _send_after_channels_ready(self, delay_seconds: int) -> None:
-        if delay_seconds > 0:
-            await asyncio.sleep(delay_seconds)
-
+    async def handle_send(self, request: "PluginHttpRequest") -> dict[str, Any]:
         notify = self.ctx.get("notify")
         if notify is None:
-            self.ctx.logger.warning("notify 服务不可用，跳过测试信息")
-            return
+            return {"code": 503, "status": "error", "message": "notify 服务不可用"}
 
         channels = self._channels(notify)
         if not channels:
-            self.ctx.logger.warning("当前没有已注册通知渠道，测试信息未发送")
-            return
+            return {"code": 400, "status": "error", "message": "当前没有已注册通知渠道"}
 
         result = await notify.send_test_notification()
         succeeded = sorted(name for name, ok in result.items() if ok)
         failed = sorted(name for name, ok in result.items() if not ok)
+
         self.ctx.logger.info(
             f"测试信息发送完成，成功={succeeded or '无'}，失败={failed or '无'}"
         )
+        return {
+            "code": 200,
+            "status": "success",
+            "succeeded": succeeded,
+            "failed": failed,
+        }
 
     def _channels(self, notify: Any) -> list[str]:
         channels = getattr(notify, "channels", None)

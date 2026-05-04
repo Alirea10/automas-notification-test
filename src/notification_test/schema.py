@@ -1,3 +1,5 @@
+from typing import Any
+
 from mas.plugin_config import PluginField
 from pydantic import BaseModel, ConfigDict
 
@@ -5,12 +7,15 @@ from pydantic import BaseModel, ConfigDict
 class Config(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    enabled: bool = PluginField(
-        default=True,
-        description="启动时发送测试信息",
-    )
-    delay_seconds: int = PluginField(
-        default=2,
-        ge=0,
-        description="启动后延迟秒数",
+    send_test_button: Any = PluginField(
+        default=None,
+        title="发送测试通知",
+        description="点击按钮向所有已注册通知渠道发送测试消息",
+        ui_type="button",
+        configurable=False,
+        action={
+            "label": "发送测试通知",
+            "path": "/notification-test/send",
+            "method": "POST",
+        },
     )
