@@ -1,6 +1,6 @@
-from typing import Any
+﻿from typing import Any
 
-from mas.plugin_config import PluginField
+from app.core.plugins.fields import PluginField
 from pydantic import BaseModel, ConfigDict
 
 
