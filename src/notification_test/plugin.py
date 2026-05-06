@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mas.plugins import PluginContext, PluginHttpRequest
+    from app.plugins import PluginContext
+    from app.plugins import PluginHttpRequest
 
 
 class Plugin:
